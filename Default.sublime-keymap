@@ -1,0 +1,10 @@
+[
+  {
+    "keys": ["ctrl+alt+i"],
+    "command": "jeb_script_add_import"
+  },
+  {
+    "keys": ["ctrl+alt+j"],
+    "command": "jeb_view_doc"
+  }
+]

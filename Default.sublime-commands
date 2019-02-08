@@ -1,0 +1,10 @@
+[
+  {
+    "caption": "JEB: Create a new script",
+    "command": "jeb_create_new_script"
+  },
+  {
+    "caption": "JEB: Update to latest API doc file",
+    "command": "jeb_update_apidoc_file"
+  }
+]
