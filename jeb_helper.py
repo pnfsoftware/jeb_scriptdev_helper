@@ -219,7 +219,7 @@ class JebUpdateApidocFile(sublime_plugin.WindowCommand):
         import urllib.request
         import shutil
         url = JebGlobals.URL_APIDOCFILE
-        filename = g.apidocpath #os.path.join(os.path.dirname(os.path.realpath(__file__)), JebGlobals.APIDOCFILE)
+        filename = g.apidocpath
         with urllib.request.urlopen(url) as response, open(filename, 'wb') as outfile:
             shutil.copyfileobj(response, outfile)
         print('%s: Updated to latest version' % filename)
