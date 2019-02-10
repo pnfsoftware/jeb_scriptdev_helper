@@ -6,7 +6,7 @@ import string
 
 '''
 ST3 extensions to help with JEB Python script development
-Nicolas Falliere (c) PNF Software (c) 2019
+Nicolas Falliere - PNF Software
 
 This ST3 extension provides:
 - create a new JEB script from template (from the Command Palette)
@@ -42,7 +42,7 @@ class JebGlobals:
         self.pluginfolder = folder
         self.apidocpath = os.path.join(folder, JebGlobals.APIDOCFILE)
 
-        self.aclist = []
+        self.actlist = []
         self.acmlist = []
 
         self.simpletypenames = {}
@@ -58,25 +58,40 @@ class JebGlobals:
                 elts = line.split(';')
                 typetype = elts[0]
                 category = int(elts[1])
-                simplename = elts[2]
+                simpletypename = elts[2]
                 packagename = elts[3]
                 typename = elts[4]
                 supertype = elts[5]
-                interfaces = [s for s in elts[6].split('|') if s]
-                constructors = [s for s in elts[7].split('|') if s]
-                methods = [s for s in elts[8].split('|') if s]
-                fields = [s for s in elts[9].split('|') if s]
+                interfaces = split(elts[6], '|')
+                constructors = split(elts[7], '|')
+                methods = split(elts[8], '|')
+                fields = split(elts[9], '|')
 
-                for method in methods:
+                # TODO: process fields as well
+                for method in (methods + constructors):
                     pos = method.find('(')
-                    if pos < 0: raise Exception('Bad method: ', method)
+                    if pos < 0:
+                        raise Exception('Bad method: ', method)
                     mname = method[:pos]
-                    self.methodnames.add((mname, simplename))
+                    args = split(method[pos+1:method.find(')')], ',')
+                    mname_with_args = mname + '('
+                    mname_with_args_tpl = mname + '('
+                    for iarg, arg in enumerate(args):
+                        if iarg >= 1:
+                            mname_with_args += ', '
+                            mname_with_args_tpl += ', '
+                        argname = arg.split(':')[0]
+                        mname_with_args += argname
+                        mname_with_args_tpl += '${%d:%s}' % (iarg + 1, argname)
+                        iarg += 1
+                    mname_with_args += ')'
+                    mname_with_args_tpl += ')'
+                    self.methodnames.add((mname_with_args, mname_with_args_tpl, simpletypename))
 
                 record = {
                     'typetype': typetype,
                     'category': category,
-                    'simplename': simplename,
+                    'simpletypename': simpletypename,
                     'packagename': packagename,
                     'typename': typename,
                     'supertype': supertype,
@@ -85,15 +100,16 @@ class JebGlobals:
                     'methods': methods,
                     'fields': fields,
                 }
-
-                hint = typename.replace('com.pnfsoftware.jeb.', '')
-                self.aclist.append([simplename + '\t' + hint, simplename])
-
-                self.simpletypenames[simplename] = typename  #TODO: collisions!
+                self.simpletypenames[simpletypename] = typename  #TODO: collisions!
                 self.typenames[typename] = record
 
-        for mname, simplename in self.methodnames:
-            self.acmlist.append([mname + '\t' + simplename, mname])
+                # auto-completion for types
+                hint = typename.replace('com.pnfsoftware.jeb.', '')
+                self.actlist.append([simpletypename + '\t' + hint, simpletypename])
+
+        # auto-completion for methods
+        for mname_with_args, mname_with_args_tpl, simpletypename in self.methodnames:
+            self.acmlist.append([mname_with_args + '\t' + simpletypename, mname_with_args_tpl])
 
 #------------------------------------------------------------------------------
 class JebAutocomplete(sublime_plugin.EventListener):
@@ -107,18 +123,10 @@ class JebAutocomplete(sublime_plugin.EventListener):
         #log('  -> "%s"' % line)
         #log('  ->  %s^' % (' ' * offset_in_line))
         if line.find('.') < 0 or line[offset_in_line - 1] in (' ', '\t'):
-            r = g.aclist
+            r = g.actlist
         else:
             r = g.acmlist
         return r
-
-    #def on_modified(self, view):
-    #    region = view.sel()[0]
-    #    pos = region.begin()
-    #    lineregion = view.line(region)
-    #    lineoffset = lineregion.begin()
-    #    line = view.substr(lineregion)
-    #    line = line[0:pos - lineoffset]
 
 #------------------------------------------------------------------------------
 class JebScriptAddImportCommand(sublime_plugin.TextCommand):
@@ -295,3 +303,9 @@ def isValidJebScriptName(s):
             return False
         i += 1
     return True
+
+#------------------------------------------------------------------------------
+# string splitter that returns an empty list if the string to be split is empty
+# (note: string.split() returns a one-element list - the empty string - when splitting the empty string)
+def split(s, delim):
+    return [] if s == '' else s.split(delim)
