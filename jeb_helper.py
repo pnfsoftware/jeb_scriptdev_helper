@@ -16,7 +16,14 @@ This ST3 extension provides:
 - browse JEB type documentation (key binding: Ctrl+Alt+J)
 '''
 
-g = None  # JebGlobals object holding JEB type info dictionaries and other globals
+g = None  # JebGlobals object holding JEB type info dictionaries
+PACKAGE_NAME = 'JEB Script Development Helper'
+APIDOCFILE = 'jeb-api.txt'
+PACKAGE_API_RESPATH = 'Packages/' + PACKAGE_NAME + '/' + APIDOCFILE
+USER_API_RESPATH = 'Packages/User/' + PACKAGE_NAME + '/' + APIDOCFILE
+URLBASE = 'https://www.pnfsoftware.com'
+URLBASE_APIDOC = URLBASE + '/jeb/apidoc'
+URL_APIDOCFILE = URLBASE_APIDOC + '/' + APIDOCFILE
 
 #------------------------------------------------------------------------------
 verbose = False  # set to True when developing/debugging
@@ -27,21 +34,22 @@ def log(s):
 def plugin_loaded():
     global g
     log('Loading plugin ...')
-    folder = os.path.dirname(os.path.realpath(__file__))
-    g = JebGlobals(folder)
+    g = JebGlobals()
     log('plugin_loaded() executed successfuly')
 
 #------------------------------------------------------------------------------
+def api_text():
+    # prefer user API file over package-provided API file, likely to be older
+    try:
+        log('Using user (custom or updated) apidoc file')
+        return sublime.load_resource('Packages/User/' + PACKAGE_NAME + '/' + APIDOCFILE)
+    except IOError:
+        log('Using package (standard) apidoc file')
+        return sublime.load_resource('Packages/' + PACKAGE_NAME + '/' + APIDOCFILE)
+
+#------------------------------------------------------------------------------
 class JebGlobals:
-    APIDOCFILE = 'jeb-api.txt'
-    URLBASE = 'https://www.pnfsoftware.com'
-    URLBASE_APIDOC = URLBASE + '/jeb/apidoc'
-    URL_APIDOCFILE = URLBASE_APIDOC + '/' + APIDOCFILE
-
-    def __init__(self, folder):
-        self.pluginfolder = folder
-        self.apidocpath = os.path.join(folder, JebGlobals.APIDOCFILE)
-
+    def __init__(self):
         self.actlist = []
         self.acmlist = []
 
@@ -49,63 +57,62 @@ class JebGlobals:
         self.typenames = {}
         self.methodnames = set()
 
-        with open(self.apidocpath) as f:
-            for line in f.readlines():
-                line = line.strip()
-                if not line or line.startswith('#'):
-                    continue
+        for line in api_text().splitlines():
+            line = line.strip()
+            if not line or line.startswith('#'):
+                continue
 
-                elts = line.split(';')
-                typetype = elts[0]
-                category = int(elts[1])
-                simpletypename = elts[2]
-                packagename = elts[3]
-                typename = elts[4]
-                supertype = elts[5]
-                interfaces = split(elts[6], '|')
-                constructors = split(elts[7], '|')
-                methods = split(elts[8], '|')
-                fields = split(elts[9], '|')
+            elts = line.split(';')
+            typetype = elts[0]
+            category = int(elts[1])
+            simpletypename = elts[2]
+            packagename = elts[3]
+            typename = elts[4]
+            supertype = elts[5]
+            interfaces = split(elts[6], '|')
+            constructors = split(elts[7], '|')
+            methods = split(elts[8], '|')
+            fields = split(elts[9], '|')
 
-                # TODO: process fields as well
-                for method in (methods + constructors):
-                    pos = method.find('(')
-                    if pos < 0:
-                        raise Exception('Bad method: ', method)
-                    mname = method[:pos]
-                    args = split(method[pos+1:method.find(')')], ',')
-                    mname_with_args = mname + '('
-                    mname_with_args_tpl = mname + '('
-                    for iarg, arg in enumerate(args):
-                        if iarg >= 1:
-                            mname_with_args += ', '
-                            mname_with_args_tpl += ', '
-                        argname = arg.split(':')[0]
-                        mname_with_args += argname
-                        mname_with_args_tpl += '${%d:%s}' % (iarg + 1, argname)
-                        iarg += 1
-                    mname_with_args += ')'
-                    mname_with_args_tpl += ')'
-                    self.methodnames.add((mname_with_args, mname_with_args_tpl, simpletypename))
+            # TODO: process fields as well
+            for method in (methods + constructors):
+                pos = method.find('(')
+                if pos < 0:
+                    raise Exception('Bad method: ', method)
+                mname = method[:pos]
+                args = split(method[pos+1:method.find(')')], ',')
+                mname_with_args = mname + '('
+                mname_with_args_tpl = mname + '('
+                for iarg, arg in enumerate(args):
+                    if iarg >= 1:
+                        mname_with_args += ', '
+                        mname_with_args_tpl += ', '
+                    argname = arg.split(':')[0]
+                    mname_with_args += argname
+                    mname_with_args_tpl += '${%d:%s}' % (iarg + 1, argname)
+                    iarg += 1
+                mname_with_args += ')'
+                mname_with_args_tpl += ')'
+                self.methodnames.add((mname_with_args, mname_with_args_tpl, simpletypename))
 
-                record = {
-                    'typetype': typetype,
-                    'category': category,
-                    'simpletypename': simpletypename,
-                    'packagename': packagename,
-                    'typename': typename,
-                    'supertype': supertype,
-                    'interfaces': interfaces,
-                    'constructors': constructors,
-                    'methods': methods,
-                    'fields': fields,
-                }
-                self.simpletypenames[simpletypename] = typename  #TODO: collisions!
-                self.typenames[typename] = record
+            record = {
+                'typetype': typetype,
+                'category': category,
+                'simpletypename': simpletypename,
+                'packagename': packagename,
+                'typename': typename,
+                'supertype': supertype,
+                'interfaces': interfaces,
+                'constructors': constructors,
+                'methods': methods,
+                'fields': fields,
+            }
+            self.simpletypenames[simpletypename] = typename  #TODO: collisions!
+            self.typenames[typename] = record
 
-                # auto-completion for types
-                hint = typename.replace('com.pnfsoftware.jeb.', '')
-                self.actlist.append([simpletypename + '\t' + hint, simpletypename])
+            # auto-completion for types
+            hint = typename.replace('com.pnfsoftware.jeb.', '')
+            self.actlist.append([simpletypename + '\t' + hint, simpletypename])
 
         # auto-completion for methods
         for mname_with_args, mname_with_args_tpl, simpletypename in self.methodnames:
@@ -180,7 +187,7 @@ class JebViewDocCommand(sublime_plugin.TextCommand):
                 addr = r['packagename'].replace('.', '/')
                 addr += '/' + t[len(r['packagename']) + 1:]
                 addr += '.html'
-                url = JebGlobals.URLBASE_APIDOC + '/reference/' + addr
+                url = URLBASE_APIDOC + '/reference/' + addr
                 log('Navigating to: %s' % url)
                 webbrowser.open_new_tab(url)
 
@@ -226,8 +233,11 @@ class JebUpdateApidocFile(sublime_plugin.WindowCommand):
     def run(self):
         import urllib.request
         import shutil
-        url = JebGlobals.URL_APIDOCFILE
-        filename = g.apidocpath
+        url = URL_APIDOCFILE
+        folder = os.path.join(sublime.packages_path(), 'User', PACKAGE_NAME)
+        if not os.path.exists(folder):
+            os.mkdir(folder)
+        filename = os.path.join(folder, APIDOCFILE)
         with urllib.request.urlopen(url) as response, open(filename, 'wb') as outfile:
             shutil.copyfileobj(response, outfile)
         print('%s: Updated to latest version' % filename)
