@@ -16,7 +16,10 @@ This ST3 extension provides:
 - browse JEB type documentation (key binding: Ctrl+Alt+J)
 '''
 
+verbose = os.environ.get('JEB_SUBLIME_VERBOSE') == '1'
+
 g = None  # JebGlobals object holding JEB type info dictionaries
+
 PACKAGE_NAME = 'JEB Script Development Helper'
 APIDOCFILE = 'jeb-api.txt'
 PACKAGE_API_RESPATH = 'Packages/' + PACKAGE_NAME + '/' + APIDOCFILE
@@ -26,9 +29,9 @@ URLBASE_APIDOC = URLBASE + '/jeb/apidoc'
 URL_APIDOCFILE = URLBASE_APIDOC + '/' + APIDOCFILE
 
 #------------------------------------------------------------------------------
-verbose = False  # set to True when developing/debugging
 def log(s):
-    if verbose: print('[JEB] %s' % s)
+    if verbose:
+        print('[JEB] %s' % s)
 
 #------------------------------------------------------------------------------
 def plugin_loaded():
