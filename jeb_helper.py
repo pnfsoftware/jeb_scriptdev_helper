@@ -16,8 +16,6 @@ This ST3 extension provides:
 - browse JEB type documentation (key binding: Ctrl+Alt+J)
 '''
 
-verbose = os.environ.get('JEB_SUBLIME_VERBOSE') == '1'
-
 g = None  # JebGlobals object holding JEB type info dictionaries
 
 PACKAGE_NAME = 'JEB Script Development Helper'
@@ -27,6 +25,9 @@ USER_API_RESPATH = 'Packages/User/' + PACKAGE_NAME + '/' + APIDOCFILE
 URLBASE = 'https://www.pnfsoftware.com'
 URLBASE_APIDOC = URLBASE + '/jeb/apidoc'
 URL_APIDOCFILE = URLBASE_APIDOC + '/' + APIDOCFILE
+SETTINGS_NAME = PACKAGE_NAME + '.sublime-settings'
+
+verbose = sublime.load_settings(SETTINGS_NAME).get('verbose')
 
 #------------------------------------------------------------------------------
 def log(s):
