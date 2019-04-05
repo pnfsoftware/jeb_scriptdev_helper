@@ -54,6 +54,9 @@ def api_text():
 #------------------------------------------------------------------------------
 class JebGlobals:
     def __init__(self):
+        self.reload_api_info()
+
+    def reload_api_info(self):
         self.actlist = []
         self.acmlist = []
 
@@ -198,17 +201,16 @@ class JebViewDocCommand(sublime_plugin.TextCommand):
 #------------------------------------------------------------------------------
 class JebCreateNewScriptCommand(sublime_plugin.WindowCommand):
     def run(self, name):
-        contents = '''# -*- coding: utf-8 -*-
-from com.pnfsoftware.jeb.client.api import IScript
+        contents = '''from com.pnfsoftware.jeb.client.api import IScript
 """
-Script for JEB Decompiler.
-Note: This file must be saved as '%s.py'
+Script for JEB Decompiler. (Save as '%s.py')
 """
 
 class %s(IScript):
 
-\t# ctx: IClientContext
+\t# ctx: IClientContext or IGraphicalClientContext
 \tdef run(self, ctx):
+\t\t#prj = ctx.getMainProject()
 \t\tpass
 ''' % (name, name)
         self.window.run_command('new_file')
@@ -245,6 +247,8 @@ class JebUpdateApidocFile(sublime_plugin.WindowCommand):
         with urllib.request.urlopen(url) as response, open(filename, 'wb') as outfile:
             shutil.copyfileobj(response, outfile)
         print('%s: Updated to latest version' % filename)
+        if g:
+            g.reload_api_info()
 
 #------------------------------------------------------------------------------
 def get_buffer(view):
